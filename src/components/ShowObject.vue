@@ -4,19 +4,8 @@
       <div style="text-h5">{{ schema.title }}</div>
 
       <template v-for="(item, index) in schema.properties" :key="index">
-        <q-input v-if="item.type == 'string'" dense :label="item.title ?? index" v-model="value[index]"></q-input>
-        <q-input v-else-if="item.type == 'integer'" dense :label="item.title ?? index" type="number"
-          v-model="value[index]"></q-input>
-        <q-input v-else-if="item.type == 'number'" dense :label="item.title ?? index" type="number" step="any"
-          v-model="value[index]"></q-input>
-        <q-btn v-else-if="item.type == 'array' || item.type == 'object'" :label="buttonLabel(item.type, index)"
-          @click="showObject(index)">
-          <q-menu context-menu>
-            <q-btn v-if="value[index] && canDelete(index)" v-close-popup label="delete" color="red"
-              @click="deleteObject(index)" />
-          </q-menu>
-        </q-btn>
-        <q-select v-if="item.enum" :options="item.enum" :label="item.title ?? index" v-model="value[index]"></q-select>
+        <SchemaInput :schema="item" :index="index" v-model="value[index]" @show-object="showObject"
+          @delete-object="deleteObject" />
       </template>
     </q-card-section>
 
@@ -31,7 +20,7 @@
                 <q-icon name="search" />
               </template>
             </q-input>
-            <q-toggle dense label="Click to edit" v-model="clickToEdit"></q-toggle>
+            <q-toggle dense label="Click to edit" v-model="clickToEdit" />
           </template>
 
           <template v-slot:body="props">
@@ -41,12 +30,9 @@
               </q-td>
               <q-td v-for="(item, index) in props.cols" :key="index">
                 {{ item.format ? item.format(props.row[item.field]) : props.row[item.field] }}
+
                 <q-popup-edit v-if="!item.format && clickToEdit" v-model="props.row[item.field]" v-slot="scope" auto-save>
-                  <q-select v-if="item.enum" :options="item.enum" :label="item.label" v-model="scope.value"
-                    @keyup.enter="scope.set"></q-select>
-                  <q-input v-else :label="item.label" v-model="scope.value" dense autofocus counter
-                    :type="(item.type == 'number' || item.type == 'integer') ? 'number' : undefined" step="any"
-                    @keyup.enter="scope.set" />
+                  <SchemaInput :schema="item.schema" :index="item.field" v-model="scope.value" autofocus />
                 </q-popup-edit>
               </q-td>
             </q-tr>
@@ -56,17 +42,8 @@
       <q-btn dense label="Add row" @click="addRow" />
       <q-btn dense label="duplicate row" @click="duplicateRow" />
       <q-btn dense flat color="red" label="delete row" @click="deleteRow" />
-      <template v-if="schema?.items['type'] == 'number'">
-        <q-input v-for="(number, index) in this.value" :key="index" dense :label="index" type="number" step="any"
-          v-model="this.value[index]" @focus="path = index" />
-      </template>
-      <template v-if="schema?.items['type'] == 'integer'">
-        <q-input v-for="(number, index) in this.value" :key="index" dense :label="index" type="number" step="1"
-          v-model="this.value[index]" @focus="path = index" />
-      </template>
-      <template v-if="schema?.items['type'] == 'string'">
-        <q-input v-for="(number, index) in this.value" :key="index" dense :label="index" v-model="this.value[index]"
-          @focus="path = index" />
+      <template v-if="schema?.items['type'] != 'object' && schema?.items['type'] != 'array'">
+        <SchemaInput v-for="(item, index) in this.value" :key="index" :index="index" :schema="schema.items" v-model="this.value[index]"/>
       </template>
     </template>
 
@@ -78,6 +55,7 @@
 <script>
 import { defineComponent, toRaw } from 'vue'
 import { SchemaUtil } from '../SchemaUtil'
+import SchemaInput from './SchemaInput.vue';
 
 export default defineComponent({
   name: 'ShowObject',
@@ -95,6 +73,9 @@ export default defineComponent({
     },
     modelValue: {
     }
+  },
+  components: {
+    SchemaInput
   },
   emits: ['update:modelValue'],
   computed: {
@@ -120,7 +101,9 @@ export default defineComponent({
           sortable: true,
           format: format,
           enum: property.enum,
-          type: property.type
+          type: property.type,
+          sformat: property.format,
+          schema: property
         });
       }
       return target;
@@ -154,9 +137,6 @@ export default defineComponent({
 
       const target = SchemaUtil.createObject(items);
       this.value[path] = target;
-    },
-    canDelete(key) {
-      return !this.schema.required?.includes(key);
     },
     keys2Path() {
       const map = new Map();
@@ -207,12 +187,6 @@ export default defineComponent({
       this.autoId(this.schema.items, target);
 
       this.value.push(target);
-    },
-    buttonLabel(type, key) {
-      if (type == 'array')
-        return key + (this.value[key] ? `: (${this.value[key].length})` : ': null');
-      else
-        return key + (this.value[key] ? '' : ': null');
     },
     deleteObject(key) {
       this.value[key] = undefined;

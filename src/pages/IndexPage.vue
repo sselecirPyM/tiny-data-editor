@@ -1,6 +1,6 @@
 <template>
   <q-page class="flex">
-    <q-card style="width: 250px;">
+    <q-card flat bordered style="width: 200px;">
       <q-card-section>
         <q-btn label="open folder" @click="selectFolder" :loading="fileSaving" />
         <!-- <q-toggle v-model="valid" disable /> -->
@@ -8,7 +8,7 @@
 
       <q-card-section>
         <q-btn label="save" :loading="fileSaving" @click="saveFile" />
-        <q-btn label="Reload" @click="refresh" />
+        <q-btn label="Reload" :loading="fileSaving" @click="refresh" />
       </q-card-section>
       <q-list bordered separator>
         <q-item v-for="(item, index) in items" :key="index" :active="selected == index" :clickable="selected != index"
@@ -37,16 +37,14 @@ export default defineComponent({
   },
   data() {
     return {
-      tEditor: null,
       valid: false,
       schema: null,
-      schemaFile: null,
       data: null,
-      dataFile: null,
       rootFolder: null,
       items: [],
       fileSaving: false,
-      selected: 0
+      selected: 0,
+      cache: new Map()
     };
   },
   mounted() {
@@ -79,43 +77,62 @@ export default defineComponent({
       window.showDirectoryPicker({ id: "folder" }).then((fileHandle) => {
         this.rootFolder = fileHandle;
         this.data = null;
-        this.dataFile = null;
         this.schema = null;
-        this.schemaFile = null;
 
         this.refresh();
       }, () => { });
     },
     saveFile() {
-      if (!this.data || !this.dataFile) {
+      if (!this.data) {
         return;
       }
       this.fileSaving = true;
-      this.dataFile.createWritable().then(async (stream) => {
-        const textEncoder = new TextEncoder();
-        const text = JSON.stringify(this.data, undefined, 2);
-        await stream.write({ type: 'write', data: textEncoder.encode(text) });
-        stream.close();
-        this.fileSaving = false;
-      }, () => { this.fileSaving = false; });
+
+      const promises = [];
+      for (const [key, value] of this.cache.entries()) {
+        promises.push(this.saveFile1(key, value));
+      }
+      Promise.all(promises).finally(() => this.fileSaving = false);
+    },
+    async saveFile1(path, obj) {
+      const file = await this.getFile(path, true);
+      const stream = await file.createWritable();
+      const textEncoder = new TextEncoder();
+      const text = JSON.stringify(obj, undefined, 2);
+      await stream.write({ type: 'write', data: textEncoder.encode(text) });
+      stream.close();
     },
     async selectData(item) {
       const file = await this.getFile(item.schema);
       this.schema = JSON.parse(await file.getFile().then(file => file.text()));
-      const file2 = await this.getFile(item.data, true);
-      const text = await file2.getFile().then(file => file.text());
-      if (text.length > 0)
-        this.data = JSON.parse(text);
-      else
-        this.data = SchemaUtil.createObject(this.schema);
-      this.validData();
-      this.schemaFile = file;
-      this.dataFile = file2;
+      const dataFile = await this.getFile(item.data, true);
+
+      const cacheData = this.cache.get(item.data);
+      if (cacheData) {
+        this.data = cacheData;
+      } else {
+        const text = await dataFile.getFile().then(file => file.text());
+        if (text.length > 0)
+          this.data = JSON.parse(text);
+        else
+          this.data = SchemaUtil.createObject(this.schema);
+        this.cache.set(item.data, this.data);
+      }
+      // this.validData();
     },
     async refresh() {
       if (!this.rootFolder)
         return;
-      const teditFile = await this.rootFolder.getFileHandle("teditor.json");
+      this.cache = new Map();
+      
+      let teditFile
+      try {
+        teditFile = await this.getFile(".teditor/teditor.json");
+      } catch (err) { }
+      try {
+        teditFile = await this.getFile("teditor.json");
+      } catch (err) { }
+
       if (teditFile.kind == 'file') {
         const a = JSON.parse(await teditFile.getFile().then(file => file.text()));
         this.items = a.items;
