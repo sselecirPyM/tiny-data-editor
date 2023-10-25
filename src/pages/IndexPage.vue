@@ -7,8 +7,9 @@
       </q-card-section>
 
       <q-card-section>
-        <q-btn label="save" :loading="fileSaving" @click="saveFile" />
+        <q-btn label="Save" :loading="fileSaving" @click="saveFile" />
         <q-btn label="Reload" :loading="fileSaving" @click="refresh" />
+        <q-btn label="Export" :loading="fileSaving" @click="exportData" />
       </q-card-section>
       <q-list bordered separator>
         <q-item v-for="(item, index) in items" :key="index" :active="selected == index" :clickable="selected != index"
@@ -44,7 +45,8 @@ export default defineComponent({
       items: [],
       fileSaving: false,
       selected: 0,
-      cache: new Map()
+      cache: new Map(),
+      exports: []
     };
   },
   mounted() {
@@ -90,32 +92,57 @@ export default defineComponent({
 
       const promises = [];
       for (const [key, value] of this.cache.entries()) {
-        promises.push(this.saveFile1(key, value));
+        promises.push(this.saveObject(key, value));
       }
       Promise.all(promises).finally(() => this.fileSaving = false);
     },
-    async saveFile1(path, obj) {
-      const file = await this.getFile(path, true);
-      const stream = await file.createWritable();
+    async saveObject(path, obj) {
       const textEncoder = new TextEncoder();
       const text = JSON.stringify(obj, undefined, 2);
-      await stream.write({ type: 'write', data: textEncoder.encode(text) });
+
+      await this.saveBuffer(path, textEncoder.encode(text));
+    },
+    async saveBuffer(path, buffer) {
+      const file = await this.getFile(path, true);
+      const stream = await file.createWritable();
+      await stream.write({ type: 'write', data: buffer });
       stream.close();
     },
+    async exportData() {
+      this.fileSaving = true;
+      try {
+        for (const item of this.exports) {
+          const text = await this.readText(item.scirpt);
+          const exportFunction = (new Function(text))();
+          const params = [];
+          for (const paramPath of item.parameters) {
+            params.push(await this.readObject(paramPath));
+          }
+
+          const result = exportFunction(...params);
+
+          if (item.output instanceof ArrayBuffer)
+            await this.saveBuffer(item.output, result)
+          else if (item.output != undefined)
+            await this.saveObject(item.output, result)
+        }
+      } finally {
+        this.fileSaving = false;
+      }
+    },
     async selectData(item) {
-      const file = await this.getFile(item.schema);
-      this.schema = JSON.parse(await file.getFile().then(file => file.text()));
-      const dataFile = await this.getFile(item.data, true);
+      this.schema = await this.readObject(item.schema);
 
       const cacheData = this.cache.get(item.data);
       if (cacheData) {
         this.data = cacheData;
       } else {
-        const text = await dataFile.getFile().then(file => file.text());
-        if (text.length > 0)
-          this.data = JSON.parse(text);
-        else
+        try {
+          this.data = await this.readObject(item.data);
+        } catch (err) {
           this.data = SchemaUtil.createObject(this.schema);
+        }
+
         this.cache.set(item.data, this.data);
       }
       // this.validData();
@@ -124,7 +151,7 @@ export default defineComponent({
       if (!this.rootFolder)
         return;
       this.cache = new Map();
-      
+
       let teditFile
       try {
         teditFile = await this.getFile(".teditor/teditor.json");
@@ -133,14 +160,21 @@ export default defineComponent({
         teditFile = await this.getFile("teditor.json");
       } catch (err) { }
 
-      if (teditFile.kind == 'file') {
-        const a = JSON.parse(await teditFile.getFile().then(file => file.text()));
-        this.items = a.items;
-        if (this.items.length > 0) {
-          this.selected = 0;
-          this.selectData(this.items[0]);
-        }
+      const a = JSON.parse(await teditFile.getFile().then(file => file.text()));
+      this.items = a.items;
+      this.exports = (a.exports instanceof Array) ? a.exports : [];
+      if (this.items.length > 0) {
+        this.selected = 0;
+        this.selectData(this.items[0]);
       }
+    },
+    async readObject(path) {
+      const file = await this.getFile(path);
+      return JSON.parse(await file.getFile().then(file => file.text()));
+    },
+    async readText(path) {
+      const file = await this.getFile(path);
+      return await file.getFile().then(file => file.text());
     },
     async getFile(path, create) {
       const paths = path.split('/');
@@ -148,9 +182,10 @@ export default defineComponent({
     },
     async getFile1(paths, base, level, create) {
       if (level == paths.length - 1) {
-        return await (await base.getFileHandle(paths[level], { create }));
+        return await base.getFileHandle(paths[level], { create });
       }
-      return await this.getFile1(paths, await base.getDirectoryHandle(paths[level], { create }), level + 1);
+      const handle = paths[level] == '.' ? base : await base.getDirectoryHandle(paths[level], { create });
+      return await this.getFile1(paths, handle, level + 1, create);
     }
   }
 })
