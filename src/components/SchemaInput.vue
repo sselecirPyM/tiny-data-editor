@@ -6,6 +6,8 @@
     </div>
     <q-input v-else-if="schema.format == 'date'" dense type="date" :label="schemaTitle" v-model="value"
       :autofocus="autofocus" />
+    <q-select v-else-if="schema.suggestion" :options="suggestions.get(schema.suggestion)" :label="schemaTitle"
+      v-model="value" @input-value="(val) => value = val" :autofocus="autofocus" hide-selected use-input fill-input />
     <q-input v-else dense :label="schemaTitle" v-model="value" :autofocus="autofocus" />
   </template>
   <q-toggle v-else-if="schema.type == 'boolean'" :label="schemaTitle" v-model="value" />
@@ -41,6 +43,8 @@ export default defineComponent({
     autofocus: {
       type: Boolean,
       default: false
+    },
+    suggestions: {
     }
   },
   emits: ['update:modelValue', 'showObject', 'deleteObject'],

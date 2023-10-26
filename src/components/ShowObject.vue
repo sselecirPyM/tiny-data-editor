@@ -4,8 +4,8 @@
       <div style="text-h5">{{ schema.title }}</div>
 
       <template v-for="(item, index) in schema.properties" :key="index">
-        <SchemaInput :schema="item" :index="index" v-model="value[index]" @show-object="showObject"
-          @delete-object="deleteObject" />
+        <SchemaInput :schema="item" :suggestions="suggestions" :index="index" v-model="value[index]"
+          @show-object="showObject" @delete-object="deleteObject" />
       </template>
     </q-card-section>
 
@@ -32,7 +32,8 @@
                 {{ item.format ? item.format(props.row[item.field]) : props.row[item.field] }}
 
                 <q-popup-edit v-if="!item.format && clickToEdit" v-model="props.row[item.field]" v-slot="scope" auto-save>
-                  <SchemaInput :schema="item.schema" :index="item.field" v-model="scope.value" autofocus />
+                  <SchemaInput :schema="item.schema" :suggestions="suggestions" :index="item.field" v-model="scope.value"
+                    autofocus />
                 </q-popup-edit>
               </q-td>
             </q-tr>
@@ -43,13 +44,14 @@
       <q-btn dense label="duplicate row" @click="duplicateRow" />
       <q-btn dense flat color="red" label="delete row" @click="deleteRow" />
       <template v-if="schema?.items['type'] != 'object' && schema?.items['type'] != 'array'">
-        <SchemaInput v-for="(item, index) in this.value" :key="index" :index="index" :schema="schema.items" v-model="this.value[index]"/>
+        <SchemaInput v-for="(item, index) in this.value" :key="index" :index="index" :schema="schema.items"
+          :suggestions="suggestions" v-model="this.value[index]" />
       </template>
     </template>
 
   </q-card>
   <ShowObject v-if="path != undefined && childSchema && value[path] != undefined" :schema="childSchema"
-    v-model="value[path]" />
+    :suggestions="suggestions" v-model="value[path]" />
 </template>
 
 <script>
@@ -69,10 +71,9 @@ export default defineComponent({
     };
   },
   props: {
-    schema: {
-    },
-    modelValue: {
-    }
+    schema: {},
+    modelValue: {},
+    suggestions: {}
   },
   components: {
     SchemaInput

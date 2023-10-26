@@ -7,9 +7,11 @@
       </q-card-section>
 
       <q-card-section>
-        <q-btn label="Save" :loading="fileSaving" @click="saveFile" />
-        <q-btn label="Reload" :loading="fileSaving" @click="refresh" />
-        <q-btn label="Export" :loading="fileSaving" @click="exportData" />
+        <q-btn label="Save" :loading="fileSaving" :disable="!this.data" @click="saveProject" />
+        <q-btn label="Reload" :loading="fileSaving" :disable="!this.data" @click="refresh" />
+        <q-btn label="Export" :loading="fileSaving" :disable="!this.data" @click="exportData" />
+        <q-btn label="Rescan suggestions" :loading="fileSaving" :disable="!this.data" @click="scanSuggestions" />
+        <q-toggle label="auto export" v-model="exportWhenSave" />
       </q-card-section>
       <q-list bordered separator>
         <q-item v-for="(item, index) in items" :key="index" :active="selected == index" :clickable="selected != index"
@@ -19,7 +21,7 @@
       </q-list>
     </q-card>
     <template v-if="schema && data">
-      <ShowObject :schema="schema" v-model="data" />
+      <ShowObject :schema="schema" v-model="data" :suggestions="suggestions" />
     </template>
   </q-page>
 </template>
@@ -28,9 +30,10 @@
 import { defineComponent } from 'vue'
 import ShowObject from 'src/components/ShowObject.vue';
 import { SchemaUtil } from '../SchemaUtil'
-import Ajv from 'ajv'
+import { FSLocal } from '../FSLocal'
+// import Ajv from 'ajv'
 
-const ajv = new Ajv();
+// const ajv = new Ajv();
 export default defineComponent({
   name: 'IndexPage',
   components: {
@@ -41,12 +44,15 @@ export default defineComponent({
       valid: false,
       schema: null,
       data: null,
-      rootFolder: null,
       items: [],
       fileSaving: false,
       selected: 0,
       cache: new Map(),
-      exports: []
+      exports: [],
+      fs: null,
+      suggestions: null,
+      suggestionsDesc: null,
+      exportWhenSave: false
     };
   },
   mounted() {
@@ -64,81 +70,72 @@ export default defineComponent({
             console.log('ctrl + s');
             event.preventDefault();
             event.returnValue = false;
-            this.saveFile();
+            this.saveProject();
           }
           break;
       }
     },
-    validData() {
-      if (this.schema && this.data) {
-        const validate = ajv.compile(this.schema);
-        this.valid = validate(this.data);
-      }
-    },
+    // validData() {
+    //   if (this.schema && this.data) {
+    //     const validate = ajv.compile(this.schema);
+    //     this.valid = validate(this.data);
+    //   }
+    // },
     selectFolder() {
       window.showDirectoryPicker({ id: "folder" }).then((fileHandle) => {
-        this.rootFolder = fileHandle;
+        this.fs = new FSLocal(fileHandle);
         this.data = null;
         this.schema = null;
 
         this.refresh();
       }, () => { });
     },
-    saveFile() {
-      if (!this.data) {
+    saveProject() {
+      if (!this.data)
         return;
-      }
       this.fileSaving = true;
 
       const promises = [];
       for (const [key, value] of this.cache.entries()) {
-        promises.push(this.saveObject(key, value));
+        promises.push(this.fs.saveObject(key, value));
       }
-      Promise.all(promises).finally(() => this.fileSaving = false);
-    },
-    async saveObject(path, obj) {
-      const textEncoder = new TextEncoder();
-      const text = JSON.stringify(obj, undefined, 2);
-
-      await this.saveBuffer(path, textEncoder.encode(text));
-    },
-    async saveBuffer(path, buffer) {
-      const file = await this.getFile(path, true);
-      const stream = await file.createWritable();
-      await stream.write({ type: 'write', data: buffer });
-      stream.close();
+      Promise.all(promises).finally(() => {
+        this.fileSaving = false;
+        if (this.exportWhenSave) {
+          this.exportData();
+        }
+      });
     },
     async exportData() {
       this.fileSaving = true;
       try {
         for (const item of this.exports) {
-          const text = await this.readText(item.scirpt);
+          const text = await this.fs.readText(item.scirpt);
           const exportFunction = (new Function(text))();
           const params = [];
-          for (const paramPath of item.parameters) {
-            params.push(await this.readObject(paramPath));
+          for (const path of item.parameters) {
+            params.push(await this.fs.readObject(path));
           }
-
           const result = exportFunction(...params);
 
           if (item.output instanceof ArrayBuffer)
-            await this.saveBuffer(item.output, result)
+            await this.fs.saveBuffer(item.output, result)
           else if (item.output != undefined)
-            await this.saveObject(item.output, result)
+            await this.fs.saveObject(item.output, result)
         }
       } finally {
         this.fileSaving = false;
       }
     },
     async selectData(item) {
-      this.schema = await this.readObject(item.schema);
+      this.schema = await this.fs.readObject(item.schema);
 
       const cacheData = this.cache.get(item.data);
       if (cacheData) {
         this.data = cacheData;
       } else {
         try {
-          this.data = await this.readObject(item.data);
+          this.data = await this.fs.readObject(item.data);
         } catch (err) {
           this.data = SchemaUtil.createObject(this.schema);
         }
@@ -148,44 +145,48 @@ export default defineComponent({
       // this.validData();
     },
     async refresh() {
-      if (!this.rootFolder)
+      if (!this.fs)
         return;
       this.cache = new Map();
 
       let teditFile
       try {
-        teditFile = await this.getFile(".teditor/teditor.json");
+        teditFile ??= await this.fs.readObject("teditor.json");
       } catch (err) { }
       try {
-        teditFile = await this.getFile("teditor.json");
+        teditFile ??= await this.fs.readObject(".teditor/teditor.json");
       } catch (err) { }
 
-      const a = JSON.parse(await teditFile.getFile().then(file => file.text()));
-      this.items = a.items;
-      this.exports = (a.exports instanceof Array) ? a.exports : [];
+      this.items = teditFile.items;
+      this.exports = (teditFile.exports instanceof Array) ? teditFile.exports : [];
       if (this.items.length > 0) {
         this.selected = 0;
         this.selectData(this.items[0]);
       }
+      this.suggestionsDesc = teditFile.suggestions;
+      this.exportWhenSave = teditFile.autoExport ? true : false;
+      await this.scanSuggestions();
     },
-    async readObject(path) {
-      const file = await this.getFile(path);
-      return JSON.parse(await file.getFile().then(file => file.text()));
-    },
-    async readText(path) {
-      const file = await this.getFile(path);
-      return await file.getFile().then(file => file.text());
-    },
-    async getFile(path, create) {
-      const paths = path.split('/');
-      return await this.getFile1(paths, this.rootFolder, 0, create);
-    },
-    async getFile1(paths, base, level, create) {
-      if (level == paths.length - 1) {
-        return await base.getFileHandle(paths[level], { create });
+    async scanSuggestions() {
+      this.suggestions = new Map();
+      if (!this.suggestionsDesc) {
+        return;
       }
-      const handle = paths[level] == '.' ? base : await base.getDirectoryHandle(paths[level], { create });
-      return await this.getFile1(paths, handle, level + 1, create);
+      for (const key in this.suggestionsDesc) {
+        const value = this.suggestionsDesc[key];
+        try {
+          if (value.type == 'enum') {
+            this.suggestions.set(key, value.enum);
+          } else if (value.type == 'filename') {
+            const re = new RegExp(value.match);
+            this.suggestions.set(key, await this.fs.searchFileName(value.path, re));
+          } else if (value.type == 'json') {
+            this.suggestions.set(key, await this.fs.readObject(value.path));
+          }
+        } catch (err) {
+          this.suggestions.set(key, []);
+        }
+      }
     }
   }
 })
