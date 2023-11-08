@@ -8,17 +8,21 @@
       :autofocus="autofocus" />
     <q-select v-else-if="schema.suggestion" :options="suggestions.get(schema.suggestion)" :label="schemaTitle"
       v-model="value" @input-value="(val) => value = val" :autofocus="autofocus" hide-selected use-input fill-input />
-    <q-input v-else dense :label="schemaTitle" v-model="value" :autofocus="autofocus" />
+    <q-input v-else dense :label="schemaTitle" v-model="value" :autofocus="autofocus">
+      <q-menu v-if="value && canDelete(index)" context-menu>
+        <q-btn v-close-popup label="delete" color="red" @click="deleteObject(index)" />
+      </q-menu>
+    </q-input>
   </template>
   <q-toggle v-else-if="schema.type == 'boolean'" :label="schemaTitle" v-model="value" />
-  <q-input v-else-if="schema.type == 'integer'" dense :label="schemaTitle" type="number" v-model="value"
+  <q-input v-else-if="schema.type == 'integer'" dense :label="schemaTitle" type="number" v-model.number="value"
     :autofocus="autofocus" />
-  <q-input v-else-if="schema.type == 'number'" dense :label="schemaTitle" type="number" step="any" v-model="value"
+  <q-input v-else-if="schema.type == 'number'" dense :label="schemaTitle" type="number" step="any" v-model.number="value"
     :autofocus="autofocus" />
   <q-btn v-else-if="schema.type == 'array' || schema.type == 'object'" :label="buttonLabel(schema.type)"
     @click="showObject(index)">
-    <q-menu context-menu>
-      <q-btn v-if="value && canDelete(index)" v-close-popup label="delete" color="red" @click="deleteObject(index)" />
+    <q-menu v-if="value && canDelete(index)" context-menu>
+      <q-btn v-close-popup label="delete" color="red" @click="deleteObject(index)" />
     </q-menu>
   </q-btn>
   <q-select v-else-if="schema.enum" :options="schema.enum" :label="schemaTitle" v-model="value" :autofocus="autofocus" />

@@ -116,7 +116,7 @@ export default defineComponent({
           for (const path of item.parameters) {
             params.push(await this.fs.readObject(path));
           }
-          const result = exportFunction(...params);
+          const result = await exportFunction(...params);
 
           if (item.output instanceof ArrayBuffer)
             await this.fs.saveBuffer(item.output, result)
@@ -181,7 +181,9 @@ export default defineComponent({
             const re = new RegExp(value.match);
             this.suggestions.set(key, await this.fs.searchFileName(value.path, re));
           } else if (value.type == 'json') {
-            this.suggestions.set(key, await this.fs.readObject(value.path));
+            const array = (await this.fs.readObject(value.path));
+            array.sort();
+            this.suggestions.set(key, array);
           }
         } catch (err) {
           this.suggestions.set(key, []);
