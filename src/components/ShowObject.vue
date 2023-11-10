@@ -40,6 +40,8 @@
           </template>
         </q-table>
       </template>
+      <q-btn dense label="move up" @click="move(-1)" />
+      <q-btn dense label="move down" @click="move(1)" />
       <q-btn dense label="Add row" @click="addRow" />
       <q-btn dense label="duplicate row" @click="duplicateRow" />
       <q-btn dense flat color="red" label="delete row" @click="deleteRow" />
@@ -191,6 +193,18 @@ export default defineComponent({
     },
     deleteObject(key) {
       this.value[key] = undefined;
+    },
+    move(offset) {
+      let path1 = this.path;
+      if (path1 < 0 || path1 > this.value.length - 1)
+        return;
+      path1 += offset;
+      if (path1 < 0 || path1 > this.value.length - 1)
+        return;
+      let temp = this.value[this.path];
+      this.value[this.path] = this.value[path1];
+      this.value[path1] = temp;
+      this.path = path1;
     }
   }
 })
@@ -200,7 +214,7 @@ export default defineComponent({
 .my-sticky-header-column-table
 
   max-width: 600px
-  height: calc(100vh - 40px)
+  height: calc(100vh - 80px)
 
   td:first-child
     background-color: $secondary !important
