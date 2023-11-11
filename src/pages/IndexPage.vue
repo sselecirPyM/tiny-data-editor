@@ -110,7 +110,10 @@ export default defineComponent({
       this.fileSaving = true;
       try {
         for (const item of this.exports) {
-          const text = await this.fs.readText(item.scirpt);
+          if (!item.script) {
+            continue;
+          }
+          const text = await this.fs.readText(item.script);
           const exportFunction = (new Function(text))();
           const params = [];
           for (const path of item.parameters) {
@@ -118,9 +121,9 @@ export default defineComponent({
           }
           const result = await exportFunction(...params);
 
-          if (item.output instanceof ArrayBuffer)
+          if (result instanceof ArrayBuffer)
             await this.fs.saveBuffer(item.output, result)
-          else if (item.output != undefined)
+          else if (result != undefined)
             await this.fs.saveObject(item.output, result)
         }
       } finally {
