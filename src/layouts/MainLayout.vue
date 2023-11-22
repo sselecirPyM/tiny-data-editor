@@ -19,13 +19,20 @@
 
 <script>
 import { defineComponent, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 export default defineComponent({
   name: 'MainLayout',
 
   setup () {
+    const { locale } = useI18n({ useScope: 'global' });
     return {
-    }
+      locale,
+    };
+  },
+  mounted() {
+    const lang = this.$q.lang.getLocale();
+    this.locale = lang;
   }
 })
 </script>

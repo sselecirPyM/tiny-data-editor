@@ -20,7 +20,7 @@
                 <q-icon name="search" />
               </template>
             </q-input>
-            <q-toggle dense label="Click to edit" v-model="clickToEdit" />
+            <q-toggle dense :label="$t('clickToEdit')" v-model="clickToEdit" />
           </template>
 
           <template v-slot:body="props">
@@ -40,11 +40,11 @@
           </template>
         </q-table>
       </template>
-      <q-btn dense label="move up" @click="move(-1)" />
-      <q-btn dense label="move down" @click="move(1)" />
-      <q-btn dense label="Add row" @click="addRow" />
-      <q-btn dense label="duplicate row" @click="duplicateRow" />
-      <q-btn dense flat color="red" label="delete row" @click="deleteRow" />
+      <q-btn dense :label="$t('moveUp')" @click="move(-1)" />
+      <q-btn dense :label="$t('moveDown')" @click="move(1)" />
+      <q-btn dense :label="$t('addRow')" @click="addRow" />
+      <q-btn dense :label="$t('duplicateRow')" @click="duplicateRow" />
+      <q-btn dense flat color="red" :label="$t('deleteRow')" @click="deleteRow" />
       <template v-if="schema?.items['type'] != 'object' && schema?.items['type'] != 'array'">
         <SchemaInput v-for="(item, index) in this.value" :key="index" :index="index" :schema="schema.items"
           :suggestions="suggestions" v-model="this.value[index]" />

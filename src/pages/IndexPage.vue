@@ -2,16 +2,16 @@
   <q-page class="flex">
     <q-card flat bordered style="width: 200px;">
       <q-card-section>
-        <q-btn label="open folder" @click="selectFolder" :loading="fileSaving" />
+        <q-btn :label="$t('openFolder')" @click="selectFolder" :loading="fileSaving" />
         <!-- <q-toggle v-model="valid" disable /> -->
       </q-card-section>
 
       <q-card-section>
-        <q-btn label="Save" :loading="fileSaving" :disable="!this.data" @click="saveProject" />
-        <q-btn label="Reload" :loading="fileSaving" :disable="!this.data" @click="refresh" />
-        <q-btn label="Export" :loading="fileSaving" :disable="!this.data" @click="exportData" />
-        <q-btn label="Rescan suggestions" :loading="fileSaving" :disable="!this.data" @click="scanSuggestions" />
-        <q-toggle label="auto export" v-model="exportWhenSave" />
+        <q-btn :label="$t('save')" :loading="fileSaving" :disable="!this.data" @click="saveProject" />
+        <q-btn :label="$t('reload')" :loading="fileSaving" :disable="!this.data" @click="refresh" />
+        <q-btn :label="$t('export')" :loading="fileSaving" :disable="!this.data" @click="exportData" />
+        <q-btn :label="$t('rescanSuggestions')" :loading="fileSaving" :disable="!this.data" @click="scanSuggestions" />
+        <q-toggle :label="$t('autoExport')" v-model="exportWhenSave" />
       </q-card-section>
       <q-list bordered separator>
         <q-item v-for="(item, index) in items" :key="index" :active="selected == index" :clickable="selected != index"
@@ -31,9 +31,7 @@ import { defineComponent } from 'vue'
 import ShowObject from 'src/components/ShowObject.vue';
 import { SchemaUtil } from '../SchemaUtil'
 import { FSLocal } from '../FSLocal'
-// import Ajv from 'ajv'
 
-// const ajv = new Ajv();
 export default defineComponent({
   name: 'IndexPage',
   components: {

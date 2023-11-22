@@ -3,30 +3,30 @@
     {{ schemaTitle }}
     <input type="color" v-model="value" :autofocus="autofocus" />
     <q-menu v-if="value && canDelete(index)" context-menu>
-      <q-btn v-close-popup label="delete" color="red" @click="deleteObject(index)" />
+      <q-btn v-close-popup :label="$t('delete')" color="red" @click="deleteObject(index)" />
     </q-menu>
   </div>
   <q-select v-else-if="schema.type == 'string' && schema.suggestion" :options="suggestions.get(schema.suggestion)"
     :label="schemaTitle" v-model="value" @input-value="(val) => value = val" :autofocus="autofocus" hide-selected
     use-input fill-input>
     <q-menu v-if="value && canDelete(index)" context-menu>
-      <q-btn v-close-popup label="delete" color="red" @click="deleteObject(index)" />
+      <q-btn v-close-popup :label="$t('delete')" color="red" @click="deleteObject(index)" />
     </q-menu>
   </q-select>
   <q-btn v-else-if="schema.type == 'array' || schema.type == 'object'" :label="buttonLabel(schema.type)"
     @click="showObject(index)">
     <q-menu v-if="value && canDelete(index)" context-menu>
-      <q-btn v-close-popup label="delete" color="red" @click="deleteObject(index)" />
+      <q-btn v-close-popup :label="$t('delete')" color="red" @click="deleteObject(index)" />
     </q-menu>
   </q-btn>
   <q-select v-else-if="schema.enum" :options="schema.enum" :label="schemaTitle" v-model="value" :autofocus="autofocus">
     <q-menu v-if="value && canDelete(index)" context-menu>
-      <q-btn v-close-popup label="delete" color="red" @click="deleteObject(index)" />
+      <q-btn v-close-popup :label="$t('delete')" color="red" @click="deleteObject(index)" />
     </q-menu>
   </q-select>
   <MixInput v-else :inputType="typeMap" v-model="value" :label="schemaTitle" :autofocus="autofocus">
     <q-menu v-if="value && canDelete(index)" context-menu>
-      <q-btn v-close-popup label="delete" color="red" @click="deleteObject(index)" />
+      <q-btn v-close-popup :label="$t('delete')" color="red" @click="deleteObject(index)" />
     </q-menu>
   </MixInput>
 </template>
