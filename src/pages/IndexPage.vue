@@ -114,15 +114,36 @@ export default defineComponent({
           const text = await this.fs.readText(item.script);
           const exportFunction = (new Function(text))();
           const params = [];
-          for (const path of item.parameters) {
-            params.push(await this.fs.readObject(path));
+          for (const parameter of item.parameters) {
+            if (typeof parameter === 'string') {
+              params.push(await this.fs.readObject(parameter));
+            } else if (parameter != null) {
+              const path = parameter.path;
+              if (path) {
+                if (parameter.type == "string") {
+                  params.push(await this.fs.readText(path));
+                } else if (parameter.type == "json") {
+                  params.push(await this.fs.readObject(path));
+                } else if (parameter.type == "binary") {
+                  params.push(await this.fs.readBinary(path));
+                } else {
+                  params.push(null);
+                }
+              } else {
+                params.push(null);
+              }
+            } else {
+              params.push(null);
+            }
           }
           const result = await exportFunction(...params);
 
           if (result instanceof ArrayBuffer)
-            await this.fs.saveBuffer(item.output, result)
+            await this.fs.saveBuffer(item.output, result);
+          else if (typeof result === 'string')
+            await this.fs.saveString(item.output, result);
           else if (result != undefined)
-            await this.fs.saveObject(item.output, result)
+            await this.fs.saveObject(item.output, result);
         }
       } finally {
         this.fileSaving = false;

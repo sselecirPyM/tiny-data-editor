@@ -36,6 +36,10 @@ export class FSLocal {
     const text = JSON.stringify(obj, undefined, 2);
     await this.saveBuffer(path, textEncoder.encode(text));
   }
+  async saveString(path, text) {
+    const textEncoder = new TextEncoder();
+    await this.saveBuffer(path, textEncoder.encode(text));
+  }
   async saveBuffer(path, buffer) {
     const file = await this.getFileHandle(path, true);
     const stream = await file.createWritable();
@@ -50,6 +54,10 @@ export class FSLocal {
   async readText(path) {
     const file = await this.getFileHandle(path);
     return await file.getFile().then(file => file.text());
+  }
+  async readBinary(path) {
+    const file = await this.getFileHandle(path);
+    return await file.getFile().then(file => file.arrayBuffer());
   }
   async getDirectoryHandle(path, create) {
     if (!path)
