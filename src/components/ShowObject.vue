@@ -1,5 +1,5 @@
 <template>
-  <q-card style="max-width: 375px; min-width: 300px;" flat bordered>
+  <q-card style="max-width: 400px; min-width: 300px;" flat bordered>
     <q-card-section v-if="schema.type == 'object'">
       <div style="text-h5">{{ schema.title }}</div>
 

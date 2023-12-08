@@ -1,6 +1,5 @@
 <template>
-
-  <q-input v-if="inputType == 'string'" dense :label="label" v-model="value">
+  <q-input autogrow v-if="inputType == 'string'" dense :label="label" v-model="value">
     <slot></slot>
   </q-input>
   <q-input v-else-if="inputType == 'date'" type="date" dense :label="label" v-model="value">

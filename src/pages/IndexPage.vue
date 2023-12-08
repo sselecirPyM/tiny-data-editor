@@ -129,6 +129,8 @@ export default defineComponent({
                 } else {
                   params.push(null);
                 }
+              } else if (parameter.type == "data") {
+                params.push(await this.getData(this.items.find(e => e.data == parameter.data)));
               } else {
                 params.push(null);
               }
@@ -138,33 +140,40 @@ export default defineComponent({
           }
           const result = await exportFunction(...params);
 
-          if (result instanceof ArrayBuffer)
-            await this.fs.saveBuffer(item.output, result);
-          else if (typeof result === 'string')
-            await this.fs.saveString(item.output, result);
-          else if (result != undefined)
-            await this.fs.saveObject(item.output, result);
+          if (item.output) {
+            if (result instanceof ArrayBuffer)
+              await this.fs.saveBuffer(item.output, result);
+            else if (typeof result === 'string')
+              await this.fs.saveString(item.output, result);
+            else if (result != undefined)
+              await this.fs.saveObject(item.output, result);
+          }
         }
       } finally {
         this.fileSaving = false;
       }
     },
     async selectData(item) {
+      this.data = await this.getData(item);
+      // this.validData();
+    },
+    async getData(item) {
       this.schema = await this.fs.readObject(item.schema);
 
       const cacheData = this.cache.get(item.data);
-      if (cacheData) {
-        this.data = cacheData;
+      if (cacheData != undefined) {
+        return cacheData;
       } else {
+        let data = null;
         try {
-          this.data = await this.fs.readObject(item.data);
+          data = await this.fs.readObject(item.data);
         } catch (err) {
-          this.data = SchemaUtil.createObject(this.schema);
+          data = SchemaUtil.createObject(this.schema);
         }
 
-        this.cache.set(item.data, this.data);
+        this.cache.set(item.data, data);
+        return data;
       }
-      // this.validData();
     },
     async refresh() {
       if (!this.fs)
